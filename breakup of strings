@@ -1,0 +1,95 @@
+import random as rd
+
+#Generates a random initial population
+def initialPopulation(size, chomasome):
+  population=[]
+  for i in range(size):
+    population.append(rd.choices(range(2), k=chomasome))
+  return population
+
+#Adds up all of the 1s in the chromosome, flipps the bits of segment 2 and 3
+def fitnessF(individual):
+  part1 = individual[:8]
+  part2 = individual[8:16]
+  part3 = individual[16:24]
+  part4 = individual[24:]
+
+  part1Fitness = sum(part1)
+  part4Fitness = sum(part4)
+
+  def flipBits (part):
+    for i in part:
+      if i == 0:
+        i = 1
+      else:
+        i = 0
+    return part
+
+  part2Fitness = sum(flipBits(part2))
+  part3Fitness = sum(flipBits(part3))
+
+  fitness = part1Fitness + part2Fitness + part3Fitness + part4Fitness
+  
+  return fitness
+
+#Selects parents using roulette wheel selection
+def rouletteWheel(population, fitness):
+  parents=[]
+  fitTotal=sum(fitness)
+  normalised=[x/fitTotal for x in fitness]
+  fitnessCumulative=[]
+  index=0
+  for n_value in normalised:
+    index+=n_value
+    fitnessCumulative.append(index)
+  populationSize=len(population)
+  for i in range(populationSize):
+    rand_n=rd.uniform(0,1)
+    individual_n=0
+    for fitvalue in fitnessCumulative:
+      if rand_n<=fitvalue:
+        parents.append(population[individual_n])
+        break
+      individual_n+=1
+  return parents
+
+#Randomly multates a chromosome
+def mutate(chomosome):
+  for i in range(len(chomosome)):
+    if rd.random() < 0.2:
+      chomosome = chomosome[:i] + [1-chomosome[i]] + chomosome[i+1:]
+  return chomosome
+
+#Performs crossover between two parents
+def crossover(parent1, parent2):
+  offspring=[]
+  cutPoint=rd.randint(1, len(parent1)-1)
+  offspring.append(parent1[:cutPoint]+parent2[cutPoint:])
+  offspring.append(parent2[:cutPoint]+parent1[cutPoint:])
+  return offspring
+
+def main():
+  populationSize=10000
+  chomasomeLength=32
+  generations=10000
+  highestFitness=0
+  population=initialPopulation(populationSize, chomasomeLength)
+
+  for i in range(generations):
+    #Calculate the fitness of each individual in the population
+    fitnesses=[fitnessF(x) for x in population]
+    #Select parents using roulette wheel selection
+    parents=rouletteWheel(population, fitnesses)
+    #Crossover and mutation
+    offspring=[]
+    for a in range(0, len(parents) - 1, 2):
+      offspring.extend(crossover(parents[a], parents[a+1]))
+    for b in range(len(offspring)):
+      offspring[b]=mutate(offspring[b])
+    population=offspring
+    #Calculate the highest fitness of the population
+    if max([fitnessF(x) for x in population])>highestFitness:
+      highest_fitness=max([fitnessF(x) for x in population])
+    print("Highest fitness in generation", i, ":", highest_fitness)
+
+main()
