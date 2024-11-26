@@ -1,0 +1,153 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+#inputs
+x = np.linspace(-15, 15, 1000).reshape(-1, 1)
+
+#function
+y = 3 * x + 0.7 * x**2
+
+class NeuralNetwork():
+    def __init__(self, layers):
+        self.L = layers
+        self.weights = []
+        self.derivative = []
+        self.output = []
+
+        weight = []
+
+        #generate weights
+        for i in range(len(layers) - 1):
+            weight = np.random.rand(layers[i], layers[i +1])
+            self.weights.append(weight)
+
+        #derivatives
+        for i in range(len(layers) - 1):
+            d = np.zeros((layers[i], layers[i+1]))
+            self.derivative.append(d)
+
+
+        #create random outputs
+        for i in range(len(layers)):
+            o = np.zeros(layers[i])
+            self.output.append(o)
+
+
+
+class Full_NN(object):
+    def __init__(self, X=1, HL=[10], Y=1):
+        self.X = X
+        self.HL = HL
+        self.Y = Y
+
+        L=[X]+HL+[Y] 
+        W=[] 
+        for i in range(len(L)-1):
+            w=np.random.rand(L[i], L[i+1])
+            W.append(w)
+            self.W=W 
+            Der=[]
+        for i in range(len(L)-1):
+            d=np.zeros((L[i], L[i+1])) 
+            Der.append(d)
+            self.Der=Der
+
+        out=[] 
+        for i in range(len(L)): 
+            o=np.zeros(L[i]) 
+            out.append(o)
+            self.out=out
+
+    # Feedforwards
+    def forwards(self, x):
+        out = x
+        self.out[0] = x
+        for i, w in enumerate(self.W):
+            Xnext = np.dot(out, w) # Matrix multiplication between weights and outputs
+            if i < len(self.W) - 1: # Only use sigmoid activation function for hidden layers (allows NN to use a wider range of values)
+                out = self.sigmoid(Xnext)  
+            else:
+                out = Xnext  # Use linear activation function for output layer
+            self.out[i + 1] = out
+        return out
+
+    # Backpropagation
+    def backwards(self, Er):
+        for i in reversed(range(len(self.Der))):
+            out = self.out[i + 1]
+            D = Er * (self.sigmoid_Der(out) if i < len(self.W) - 1 else 1)
+            D_fixed = D.reshape(D.shape[0], -1).T
+            this_out = self.out[i].reshape(self.out[i].shape[0], -1)
+            self.Der[i] = np.dot(this_out, D_fixed)
+            Er = np.dot(D, self.W[i].T)
+
+    def train(self, x, target, epochs, lr, test_input):
+        predictions = {}
+        for i in range(epochs):
+            S_errors = 0
+            for j, inp in enumerate(x):
+                t = target[j]
+                output = self.forwards(inp)
+                e = t - output # Calculate error
+                self.backwards(e)
+                self.GD(lr)
+                S_errors += self.msqe(t, output)
+            if i % 100 == 0: # Output the current epoch, and the msq for that epoch every 100 epochs
+                
+                normalised_input = (test_input - x_min) / (x_max - x_min) * 2 - 1
+                NN_output = self.forwards(normalised_input)
+                denormalised_output = NN_output * (y_max - y_min) / 2 + (y_max + y_min) / 2
+                
+                print(f"Epoch {i}, Mean Squared Error: {S_errors / len(x)}, NN Output for Test Input {test_input}: {denormalised_output[0]}, Expected Output: {3 * test_input + 0.7 * test_input**2})")
+            
+            if i % 500 == 0:
+                y_prediction_normalised = self.forwards(x)
+                predictions[i] = y_prediction_normalised
+        return predictions
+
+
+    def GD(self, lr=0.05): 
+        for i in range(len(self.W)):
+            self.W[i] += self.Der[i] * lr # Adjust weights to minise error for next epoch
+
+    def sigmoid(self, x):
+        return 1.0 / (1 + np.exp(-x))
+
+    def sigmoid_Der(self, x):
+        return x * (1.0 - x)
+
+    def msqe(self, t, output):
+        return np.average((t - output) ** 2)
+
+if __name__ == "__main__":
+    
+    # Normalise data
+    x_min, x_max = x.min(), x.max()
+    y_min, y_max = y.min(), y.max()
+    x_norm = (x - x_min) / (x_max - x_min) * 2 - 1
+    y_norm = (y - y_min) / (y_max - y_min) * 2 - 1
+
+    # Create neural network
+    nn = Full_NN(1, [20, 20], 1)
+
+    # Train the neural network
+    test_input = 5
+    epochs = 1000
+    predictions = nn.train(x_norm, y_norm, epochs, lr=0.1, test_input=test_input) # Learning rate should be decreased and epochs increase for a more accurate approximation, but this is at the cost of time
+
+    plt.figure(figsize=(10, 6))
+    plt.title("Function Approximation of y = 3x + 0.7x^2")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    
+    for epoch, y_prediction_normalised in predictions.items(): # Plot a line on the graph to show the improvement of the accuracy of the approximation
+        y_prediction = (y_prediction_normalised + 1) / 2 * (y_max - y_min) + y_min
+        plt.plot(x, y_prediction, label = f"NN Approximation at Epoch {epoch}", linestyle = "--", linewidth = 2)
+
+
+    
+    plt.plot(x, y, label="y = 3x + 0.7x^2", color="blue", linewidth=2)
+    plt.plot(x, y_prediction, label=f"NN Approximation at epoch {epochs}", color="red", linestyle="--", linewidth=2) # Final approximation
+    plt.legend()
+    plt.grid()
+    plt.show()
